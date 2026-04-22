@@ -1,0 +1,30 @@
+[
+  {
+    "name": "subject_replace",
+    "description": "Replace the original person entirely, including face, hair, outfit,\nand all accessories."
+  },
+  {
+    "name": "pose_lock",
+    "description": "Strictly preserve the original body proportions, body position,\nframing, camera perspective, and overall composition from the source\nimage.\nThe new person must closely align with the original skeleton, body\ngesture, and placement in the frame, while allowing only slight\nnatural adjustments to the head angle, eye direction, neck,\nshoulders, and upper-body orientation so the subject can face the\ncamera naturally and comfortably."
+  },
+  {
+    "name": "camera_facing",
+    "description": "The face must face the camera clearly, with direct or near-direct\neye contact.\nThe face should be frontal or near-frontal, with both eyes clearly\nvisible.\nKeep the pose natural and relaxed.\nDo not generate profile view, strong three-quarter view,\nside-looking face angles, looking away, downward gaze, or unnatural\nneck twisting."
+  },
+  {
+    "name": "outfit_replace",
+    "description": "Wear the outfit from the reference garment image, strictly matching\nthe color, silhouette, structure, styling, and fabric details.\nThe clothing should fit naturally on the body, with realistic folds,\ncorrect tension, and believable fabric behavior based on the pose.\nCompletely remove all original clothing, accessories, jewelry, and\nhandheld objects.\nDo not retain, partially preserve, or blend any original outfit\nelements."
+  },
+  {
+    "name": "scene_consistency",
+    "description": "Seamlessly integrate the new person into the original scene with\naccurate scale, perspective, depth, and spatial consistency.\nLighting must strictly follow the original image, including\ndirection, intensity, shadow softness, highlight behavior, and color\ntemperature.\nPreserve the realism of the original environment and ensure the\nsubject is fully consistent with the scene."
+  },
+  {
+    "name": "negative_prompt",
+    "description": "low quality, blurry, over-retouched skin, plastic skin, heavy AI\nartifacts, ghosting, double face, mismatched face, distorted face,\nasymmetrical eyes, broken facial features, side-looking face,\nprofile face, looking away, downward gaze, unnatural neck twist,\ndeformed hands, extra fingers, extra limbs, bad anatomy, incorrect\nbody proportions, outfit mismatch, leftover original clothes,\nblended clothing, floating accessories, bad edges, cut-off body\nparts"
+  },
+  {
+    "name": "固定提示词",
+    "description": "Replace the original person entirely, including face, hair, outfit,\nand all accessories.Strictly preserve the original body proportions, body position,\nframing, camera perspective, and overall composition from the source\nimage.\nThe new person must closely align with the original skeleton, body\ngesture, and placement in the frame, while allowing only slight\nnatural adjustments to the head angle, eye direction, neck,\nshoulders, and upper-body orientation so the subject can face the\ncamera naturally and comfortably.The face must face the camera clearly, with direct or near-direct\neye contact.\nThe face should be frontal or near-frontal, with both eyes clearly\nvisible.\nKeep the pose natural and relaxed.\nDo not generate profile view, strong three-quarter view,\nside-looking face angles, looking away, downward gaze, or unnatural\nneck twisting.Wear the outfit from the reference garment image, strictly matching\nthe color, silhouette, structure, styling, and fabric details.\nThe clothing should fit naturally on the body, with realistic folds,\ncorrect tension, and believable fabric behavior based on the pose.\nCompletely remove all original clothing, accessories, jewelry, and\nhandheld objects.\nDo not retain, partially preserve, or blend any original outfit\nelements.Seamlessly integrate the new person into the original scene with\naccurate scale, perspective, depth, and spatial consistency.\nLighting must strictly follow the original image, including\ndirection, intensity, shadow softness, highlight behavior, and color\ntemperature.\nPreserve the realism of the original environment and ensure the\nsubject is fully consistent with the scene."
+  }
+]
