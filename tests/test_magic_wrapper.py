@@ -36,6 +36,7 @@ MagicImageBatchConcat = MODULE.NODE_CLASS_MAPPINGS["MagicImageBatchConcat"]
 MagicForEachImageStart = MODULE.NODE_CLASS_MAPPINGS["MagicForEachImageStart"]
 MagicForEachImageEnd = MODULE.NODE_CLASS_MAPPINGS["MagicForEachImageEnd"]
 MagicPromptSelect = MODULE.NODE_CLASS_MAPPINGS["MagicPromptSelect"]
+MagicAudioSpeed = MODULE.NODE_CLASS_MAPPINGS["MagicAudioSpeed"]
 PROMPT_LIBRARY = sys.modules["magicwrapper.mw_prompt_library"]
 
 
@@ -57,6 +58,13 @@ def make_image_batch(batch, height=4, width=4, channels=3):
     total = batch * height * width * channels
     values = torch.arange(total, dtype=torch.float32)
     return values.reshape(batch, height, width, channels)
+
+
+def make_audio(samples=16000, sample_rate=16000, channels=1):
+    timeline = torch.arange(samples, dtype=torch.float32) / sample_rate
+    waveform = torch.sin(2 * torch.pi * 440.0 * timeline)
+    waveform = waveform.reshape(1, 1, samples).repeat(1, channels, 1)
+    return {"waveform": waveform, "sample_rate": sample_rate}
 
 
 def write_prompts_file(path, payload):
@@ -109,6 +117,39 @@ class MagicWrapperTests(unittest.TestCase):
 
         with self.assertRaisesRegex(ValueError, "shape"):
             MagicImageBatchConcat().concat(first, second)
+
+    def test_audio_speed_node_is_registered(self):
+        self.assertIn("MagicAudioSpeed", MODULE.NODE_CLASS_MAPPINGS)
+        self.assertEqual(
+            MODULE.NODE_DISPLAY_NAME_MAPPINGS["MagicAudioSpeed"],
+            "Magic Audio Speed",
+        )
+
+    def test_audio_speed_resample_changes_duration(self):
+        audio = make_audio(samples=1000, sample_rate=1000, channels=2)
+
+        result = MagicAudioSpeed().adjust(audio, speed=2.0, method="resample")[0]
+
+        self.assertEqual(result["sample_rate"], 1000)
+        self.assertEqual(result["waveform"].shape, (1, 2, 500))
+
+    def test_audio_speed_preserve_pitch_changes_duration(self):
+        audio = make_audio(samples=4096, sample_rate=16000)
+
+        result = MagicAudioSpeed().adjust(audio, speed=1.25, method="preserve_pitch")[0]
+
+        self.assertEqual(result["sample_rate"], 16000)
+        self.assertEqual(result["waveform"].shape, (1, 1, 3277))
+
+    def test_audio_speed_rejects_invalid_audio(self):
+        with self.assertRaisesRegex(ValueError, "waveform"):
+            MagicAudioSpeed().adjust({"sample_rate": 16000}, speed=1.0)
+
+    def test_audio_speed_rejects_invalid_speed(self):
+        audio = make_audio(samples=100)
+
+        with self.assertRaisesRegex(ValueError, "speed"):
+            MagicAudioSpeed().adjust(audio, speed=0.0)
 
     def test_for_each_start_returns_selected_image(self):
         images = make_image_batch(3)
