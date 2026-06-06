@@ -38,6 +38,7 @@ MagicForEachImageEnd = MODULE.NODE_CLASS_MAPPINGS["MagicForEachImageEnd"]
 MagicPromptSelect = MODULE.NODE_CLASS_MAPPINGS["MagicPromptSelect"]
 MagicAudioSpeed = MODULE.NODE_CLASS_MAPPINGS["MagicAudioSpeed"]
 PROMPT_LIBRARY = sys.modules["magicwrapper.mw_prompt_library"]
+AUDIO_NODES = sys.modules["magicwrapper.mw_audio_nodes"]
 
 
 class FakeDynPrompt:
@@ -124,6 +125,20 @@ class MagicWrapperTests(unittest.TestCase):
             MODULE.NODE_DISPLAY_NAME_MAPPINGS["MagicAudioSpeed"],
             "Magic Audio Speed",
         )
+        method_input = MagicAudioSpeed.INPUT_TYPES()["required"]["method"]
+        self.assertEqual(method_input[1]["default"], "rubberband")
+
+    @unittest.skipUnless(
+        AUDIO_NODES.ffmpeg_is_available() and AUDIO_NODES.soundfile is not None,
+        "ffmpeg and soundfile are required for rubberband",
+    )
+    def test_audio_speed_rubberband_changes_duration(self):
+        audio = make_audio(samples=4096, sample_rate=16000, channels=2)
+
+        result = MagicAudioSpeed().adjust(audio, speed=1.25, method="rubberband")[0]
+
+        self.assertEqual(result["sample_rate"], 16000)
+        self.assertEqual(result["waveform"].shape, (1, 2, 3277))
 
     def test_audio_speed_resample_changes_duration(self):
         audio = make_audio(samples=1000, sample_rate=1000, channels=2)

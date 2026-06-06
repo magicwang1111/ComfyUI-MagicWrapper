@@ -1,4 +1,8 @@
 import math
+import shutil
+import subprocess
+import tempfile
+from pathlib import Path
 
 import torch
 import torch.nn.functional as F
@@ -8,8 +12,13 @@ try:
 except Exception:
     torchaudio_functional = None
 
+try:
+    import soundfile
+except Exception:
+    soundfile = None
 
-AUDIO_SPEED_METHODS = ["preserve_pitch", "resample"]
+
+AUDIO_SPEED_METHODS = ["rubberband", "atempo", "preserve_pitch", "resample"]
 
 
 def ensure_audio(audio, node_name, input_name):
@@ -53,6 +62,17 @@ def target_sample_count(sample_count, speed):
     return max(1, int(round(sample_count / speed)))
 
 
+def match_sample_count(waveform, sample_count):
+    current_count = waveform.shape[-1]
+    if current_count == sample_count:
+        return waveform
+    if current_count > sample_count:
+        return waveform[..., :sample_count]
+
+    pad_count = sample_count - current_count
+    return F.pad(waveform, (0, pad_count))
+
+
 def resample_speed(waveform, speed):
     sample_count = waveform.shape[-1]
     target_count = target_sample_count(sample_count, speed)
@@ -65,6 +85,101 @@ def resample_speed(waveform, speed):
     flat = waveform.reshape(-1, 1, sample_count)
     stretched = F.interpolate(flat, size=target_count, mode="linear", align_corners=False)
     return stretched.reshape(*batch_shape, target_count)
+
+
+def ffmpeg_is_available():
+    return shutil.which("ffmpeg") is not None
+
+
+def get_ffmpeg_path():
+    ffmpeg_path = shutil.which("ffmpeg")
+    if ffmpeg_path is None:
+        raise RuntimeError(
+            "MagicAudioSpeed: ffmpeg was not found. Install ffmpeg or choose preserve_pitch/resample."
+        )
+    return ffmpeg_path
+
+
+def atempo_filter(speed):
+    remaining = float(speed)
+    filters = []
+    while remaining < 0.5:
+        filters.append("atempo=0.5")
+        remaining /= 0.5
+    while remaining > 2.0:
+        filters.append("atempo=2.0")
+        remaining /= 2.0
+    filters.append(f"atempo={remaining:.8f}")
+    return ",".join(filters)
+
+
+def ffmpeg_speed_filter(method, speed):
+    if method == "rubberband":
+        return (
+            f"rubberband=tempo={speed:.8f}:pitch=1.00000000:"
+            "formant=preserved:pitchq=quality:channels=together"
+        )
+    if method == "atempo":
+        return atempo_filter(speed)
+    raise ValueError(f"MagicAudioSpeed: '{method}' is not an ffmpeg speed method.")
+
+
+def ffmpeg_speed(waveform, sample_rate, speed, method):
+    if soundfile is None:
+        raise RuntimeError("MagicAudioSpeed: rubberband/atempo modes require the soundfile package.")
+
+    ffmpeg_path = get_ffmpeg_path()
+    sample_count = waveform.shape[-1]
+    target_count = target_sample_count(sample_count, speed)
+    if target_count == sample_count:
+        return waveform.clone()
+
+    original_dtype = waveform.dtype
+    output_chunks = []
+    audio_filter = ffmpeg_speed_filter(method, speed)
+
+    with tempfile.TemporaryDirectory(prefix="magic_audio_speed_") as temp_dir:
+        temp_path = Path(temp_dir)
+        for batch_index, batch_waveform in enumerate(waveform.detach().cpu().float()):
+            input_path = temp_path / f"input_{batch_index}.wav"
+            output_path = temp_path / f"output_{batch_index}.wav"
+            audio_data = batch_waveform.transpose(0, 1).contiguous().numpy()
+            soundfile.write(input_path, audio_data, sample_rate, subtype="FLOAT")
+
+            command = [
+                ffmpeg_path,
+                "-y",
+                "-hide_banner",
+                "-loglevel",
+                "error",
+                "-i",
+                str(input_path),
+                "-af",
+                audio_filter,
+                "-ar",
+                str(sample_rate),
+                "-ac",
+                str(batch_waveform.shape[0]),
+                "-c:a",
+                "pcm_f32le",
+                str(output_path),
+            ]
+            try:
+                subprocess.run(command, check=True, capture_output=True, text=True)
+            except subprocess.CalledProcessError as exc:
+                message = exc.stderr.strip() or exc.stdout.strip() or str(exc)
+                raise RuntimeError(f"MagicAudioSpeed: ffmpeg {method} failed: {message}") from exc
+
+            processed_data, processed_sample_rate = soundfile.read(output_path, dtype="float32", always_2d=True)
+            if int(processed_sample_rate) != sample_rate:
+                raise RuntimeError(
+                    f"MagicAudioSpeed: ffmpeg returned sample rate {processed_sample_rate}, expected {sample_rate}."
+                )
+            processed = torch.from_numpy(processed_data.T.copy())
+            processed = match_sample_count(processed, target_count)
+            output_chunks.append(processed)
+
+    return torch.stack(output_chunks, dim=0).to(device=waveform.device, dtype=original_dtype)
 
 
 def choose_fft_size(sample_count):
@@ -157,8 +272,8 @@ class MagicAudioSpeed:
                 "method": (
                     AUDIO_SPEED_METHODS,
                     {
-                        "default": "preserve_pitch",
-                        "tooltip": "preserve_pitch keeps voice pitch stable; resample changes duration and pitch.",
+                        "default": "rubberband",
+                        "tooltip": "rubberband keeps voice pitch/formants stable; resample changes duration and pitch.",
                     },
                 ),
             }
@@ -180,7 +295,9 @@ class MagicAudioSpeed:
                 f"MagicAudioSpeed: method must be one of {AUDIO_SPEED_METHODS}, got '{method}'."
             )
 
-        if method == "preserve_pitch":
+        if method in ("rubberband", "atempo"):
+            adjusted_waveform = ffmpeg_speed(waveform, sample_rate, speed, method)
+        elif method == "preserve_pitch":
             adjusted_waveform = preserve_pitch_speed(waveform, speed)
         else:
             adjusted_waveform = resample_speed(waveform, speed)
