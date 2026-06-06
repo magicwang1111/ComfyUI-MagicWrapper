@@ -179,7 +179,15 @@ class MagicWrapperTests(unittest.TestCase):
 
         frames = MagicAudioFrameCount().calculate(audio, fps=25.0)[0]
 
-        self.assertEqual(frames, 50.0)
+        self.assertEqual(frames, 50)
+        self.assertIsInstance(frames, int)
+
+    def test_audio_frame_count_rounds_up_partial_frames(self):
+        audio = make_audio(samples=101, sample_rate=100)
+
+        frames = MagicAudioFrameCount().calculate(audio, fps=25.0)[0]
+
+        self.assertEqual(frames, 26)
 
     def test_audio_frame_count_rejects_invalid_fps(self):
         audio = make_audio(samples=100)

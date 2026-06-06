@@ -309,7 +309,7 @@ class MagicAudioSpeed:
 
 
 class MagicAudioFrameCount:
-    DESCRIPTION = "Calculate how many frames are needed to match an AUDIO duration at the chosen FPS."
+    DESCRIPTION = "Calculate how many integer frames are needed to match an AUDIO duration at the chosen FPS."
 
     @classmethod
     def INPUT_TYPES(cls):
@@ -329,7 +329,7 @@ class MagicAudioFrameCount:
             }
         }
 
-    RETURN_TYPES = ("FLOAT",)
+    RETURN_TYPES = ("INT",)
     RETURN_NAMES = ("frames",)
     FUNCTION = "calculate"
     CATEGORY = "MagicWrapper/Audio"
@@ -342,7 +342,7 @@ class MagicAudioFrameCount:
             raise ValueError("MagicAudioFrameCount: fps must be greater than 0.")
 
         duration_seconds = waveform.shape[-1] / sample_rate
-        return (float(duration_seconds * fps),)
+        return (int(math.ceil(duration_seconds * fps)),)
 
 
 NODE_CLASS_MAPPINGS = {
