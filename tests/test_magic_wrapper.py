@@ -37,6 +37,7 @@ MagicForEachImageStart = MODULE.NODE_CLASS_MAPPINGS["MagicForEachImageStart"]
 MagicForEachImageEnd = MODULE.NODE_CLASS_MAPPINGS["MagicForEachImageEnd"]
 MagicPromptSelect = MODULE.NODE_CLASS_MAPPINGS["MagicPromptSelect"]
 MagicAudioSpeed = MODULE.NODE_CLASS_MAPPINGS["MagicAudioSpeed"]
+MagicAudioFrameCount = MODULE.NODE_CLASS_MAPPINGS["MagicAudioFrameCount"]
 PROMPT_LIBRARY = sys.modules["magicwrapper.mw_prompt_library"]
 AUDIO_NODES = sys.modules["magicwrapper.mw_audio_nodes"]
 
@@ -165,6 +166,26 @@ class MagicWrapperTests(unittest.TestCase):
 
         with self.assertRaisesRegex(ValueError, "speed"):
             MagicAudioSpeed().adjust(audio, speed=0.0)
+
+    def test_audio_frame_count_node_is_registered(self):
+        self.assertIn("MagicAudioFrameCount", MODULE.NODE_CLASS_MAPPINGS)
+        self.assertEqual(
+            MODULE.NODE_DISPLAY_NAME_MAPPINGS["MagicAudioFrameCount"],
+            "Magic Audio Frame Count",
+        )
+
+    def test_audio_frame_count_calculates_frames_from_duration(self):
+        audio = make_audio(samples=48000, sample_rate=24000)
+
+        frames = MagicAudioFrameCount().calculate(audio, fps=25.0)[0]
+
+        self.assertEqual(frames, 50.0)
+
+    def test_audio_frame_count_rejects_invalid_fps(self):
+        audio = make_audio(samples=100)
+
+        with self.assertRaisesRegex(ValueError, "fps"):
+            MagicAudioFrameCount().calculate(audio, fps=0.0)
 
     def test_for_each_start_returns_selected_image(self):
         images = make_image_batch(3)

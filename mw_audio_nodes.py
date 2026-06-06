@@ -284,7 +284,7 @@ class MagicAudioSpeed:
     FUNCTION = "adjust"
     CATEGORY = "MagicWrapper/Audio"
 
-    def adjust(self, audio, speed=1.0, method="preserve_pitch"):
+    def adjust(self, audio, speed=1.0, method="rubberband"):
         waveform, sample_rate = ensure_audio(audio, node_name="MagicAudioSpeed", input_name="audio")
 
         speed = float(speed)
@@ -308,10 +308,49 @@ class MagicAudioSpeed:
         return (output,)
 
 
+class MagicAudioFrameCount:
+    DESCRIPTION = "Calculate how many frames are needed to match an AUDIO duration at the chosen FPS."
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "audio": ("AUDIO",),
+                "fps": (
+                    "FLOAT",
+                    {
+                        "default": 25.0,
+                        "min": 0.001,
+                        "max": 1000.0,
+                        "step": 0.01,
+                        "tooltip": "Frames per second. Output is audio duration in seconds multiplied by this value.",
+                    },
+                ),
+            }
+        }
+
+    RETURN_TYPES = ("FLOAT",)
+    RETURN_NAMES = ("frames",)
+    FUNCTION = "calculate"
+    CATEGORY = "MagicWrapper/Audio"
+
+    def calculate(self, audio, fps=25.0):
+        waveform, sample_rate = ensure_audio(audio, node_name="MagicAudioFrameCount", input_name="audio")
+
+        fps = float(fps)
+        if fps <= 0:
+            raise ValueError("MagicAudioFrameCount: fps must be greater than 0.")
+
+        duration_seconds = waveform.shape[-1] / sample_rate
+        return (float(duration_seconds * fps),)
+
+
 NODE_CLASS_MAPPINGS = {
     "MagicAudioSpeed": MagicAudioSpeed,
+    "MagicAudioFrameCount": MagicAudioFrameCount,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
     "MagicAudioSpeed": "Magic Audio Speed",
+    "MagicAudioFrameCount": "Magic Audio Frame Count",
 }
